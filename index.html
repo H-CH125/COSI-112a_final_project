@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Muddy Children Puzzle</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState } = React;
+
+  // Lucide React icons as inline SVG components
+  const Brain = () => (
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"></path>
+            <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"></path>
+            <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"></path>
+            <path d="M17.599 6.5a3 3 0 0 0 .399-1.375"></path>
+            <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"></path>
+            <path d="M3.477 10.896a4 4 0 0 1 .585-.396"></path>
+            <path d="M19.938 10.5a4 4 0 0 1 .585.396"></path>
+            <path d="M6 18a4 4 0 0 1-1.967-.516"></path>
+            <path d="M19.967 17.484A4 4 0 0 1 18 18"></path>
+          </svg>
+  );
+
+  const Play = () => (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="6 3 20 12 6 21 6 3"></polygon>
+          </svg>
+  );
+
+  const RotateCcw = () => (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+  );
+
+  const MessageSquare = () => (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+  );
+
+  const Eye = () => (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+  );
+
+  const Lightbulb = () => (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path>
+            <path d="M9 18h6"></path>
+            <path d="M10 22h4"></path>
+          </svg>
+  );
+
+  function MuddyChildren() {
+    const [numChildren, setNumChildren] = useState(3);
+    const [numMuddy, setNumMuddy] = useState(2);
+    const [muddyChildren, setMuddyChildren] = useState([]);
+    const [round, setRound] = useState(0);
+    const [gameStarted, setGameStarted] = useState(false);
+    const [answers, setAnswers] = useState([]);
+    const [log, setLog] = useState([]);
+    const [solved, setSolved] = useState(false);
+    const [reasoning, setReasoning] = useState([]);
+    const [selectedChild, setSelectedChild] = useState(null);
+    const [showConnections, setShowConnections] = useState(false);
+
+    const initializeGame = () => {
+      const muddy = [];
+      const actualNumMuddy = Math.min(numMuddy, numChildren);
+      while (muddy.length < actualNumMuddy) {
+        const child = Math.floor(Math.random() * numChildren);
+        if (!muddy.includes(child)) {
+          muddy.push(child);
+        }
+      }
+      setMuddyChildren(muddy.sort((a, b) => a - b));
+      setRound(0);
+      setGameStarted(true);
+      setAnswers([]);
+      setLog([`Game started! ${actualNumMuddy} of ${numChildren} children are muddy.`, `Parent announces: "At least one of you is muddy!"`]);
+      setSolved(false);
+      setReasoning([]);
+      setSelectedChild(null);
+      setShowConnections(false);
+    };
+
+    const getChildReasoning = (childIndex, currentRound) => {
+      const isMuddy = muddyChildren.includes(childIndex);
+      const muddyCount = muddyChildren.length;
+      const seenMuddy = muddyChildren.filter(m => m !== childIndex).length;
+
+      if (currentRound === 0) {
+        return {
+          thought: `I see ${seenMuddy} muddy ${seenMuddy === 1 ? 'child' : 'children'}. I know at least one child is muddy.`,
+          knows: false,
+          observation: `Observing others...`
+        };
+      }
+
+      if (!isMuddy) {
+        // Clean children don't know they're clean until the muddy ones answer
+        if (currentRound < muddyCount) {
+          return {
+            thought: `I see ${seenMuddy} muddy ${seenMuddy === 1 ? 'child' : 'children'}. If I'm also muddy, there would be ${seenMuddy + 1} total. If not, just ${seenMuddy}.`,
+            knows: false,
+            observation: `I could be muddy or clean. Waiting to see what happens...`
+          };
+        } else if (currentRound === muddyCount) {
+          return {
+            thought: `The ${seenMuddy} muddy children just answered "yes"! That means there are exactly ${seenMuddy} muddy children total. Since I see all of them, I must be clean!`,
+            knows: true,
+            observation: `Now I know I'm clean! (But only muddy children speak up)`
+          };
+        } else {
+          return {
+            thought: `The muddy children already identified themselves. I know I'm clean.`,
+            knows: true,
+            observation: `Confirmed clean.`
+          };
+        }
+      }
+
+      if (currentRound < muddyCount) {
+        return {
+          thought: `I see ${seenMuddy} muddy ${seenMuddy === 1 ? 'child' : 'children'}. If there were only ${seenMuddy}, they would have known by now...`,
+          knows: false,
+          observation: `Waiting to see if the ${seenMuddy} I see will answer...`
+        };
+      } else if (currentRound === muddyCount) {
+        return {
+          thought: `Wait! If there were only ${seenMuddy} muddy children, they would have answered in round ${seenMuddy}. Since no one answered yet, there must be ${muddyCount} muddy children. That means I'M MUDDY!`,
+          knows: true,
+          observation: `💡 I figured it out!`
+        };
+      }
+
+      return {
+        thought: `I already knew I was muddy!`,
+        knows: true,
+        observation: `Confirmed muddy.`
+      };
+    };
+
+    const askQuestion = () => {
+      if (solved) return;
+
+      const newRound = round + 1;
+      setRound(newRound);
+      setShowConnections(true);
+
+      const allReasoning = [];
+      for (let i = 0; i < numChildren; i++) {
+        allReasoning.push(getChildReasoning(i, newRound));
+      }
+      setReasoning(allReasoning);
+
+      const newAnswers = [];
+      let anyYes = false;
+
+      for (let i = 0; i < numChildren; i++) {
+        const isMuddy = muddyChildren.includes(i);
+        const muddyCount = muddyChildren.length;
+
+        if (isMuddy && newRound === muddyCount) {
+          newAnswers.push(true);
+          anyYes = true;
+        } else {
+          newAnswers.push(false);
+        }
+      }
+
+      setAnswers(newAnswers);
+
+      if (anyYes) {
+        const whoAnswered = newAnswers
+                .map((ans, i) => ans ? `Child ${i + 1}` : null)
+                .filter(Boolean)
+                .join(', ');
+        setLog(prev => [...prev, `Round ${newRound}: ${whoAnswered} said "YES, I'm muddy!"`]);
+        setSolved(true);
+      } else {
+        setLog(prev => [...prev, `Round ${newRound}: Everyone said "I don't know yet."`]);
+      }
+    };
+
+    const reset = () => {
+      setGameStarted(false);
+      setMuddyChildren([]);
+      setRound(0);
+      setAnswers([]);
+      setLog([]);
+      setSolved(false);
+      setReasoning([]);
+      setSelectedChild(null);
+      setShowConnections(false);
+    };
+
+    const getCirclePosition = (index, total, radius = 180) => {
+      const angle = (index * 2 * Math.PI / total) - Math.PI / 2;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      return { x, y };
+    };
+
+    return (
+            <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-8">
+              <div className="max-w-6xl mx-auto">
+                <div className="bg-white rounded-lg shadow-xl p-8 mb-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Brain />
+                    <h1 className="text-3xl font-bold text-gray-800">Muddy Children Puzzle</h1>
+                  </div>
+
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <h2 className="font-semibold text-blue-900 mb-2">The Problem:</h2>
+                    <p className="text-blue-800 text-sm">
+                      Some children have muddy foreheads. Each child can see everyone else's forehead but not their own.
+                      A parent announces: "At least one of you is muddy." Then repeatedly asks: "Do you know if you're muddy?"
+                      Click on children to see their reasoning!
+                    </p>
+                  </div>
+
+                  {!gameStarted ? (
+                          <div className="space-y-6">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Number of Children: {numChildren}
+                              </label>
+                              <input
+                                      type="range"
+                                      min="2"
+                                      max="7"
+                                      value={numChildren}
+                                      onChange={(e) => {
+                                        const newNum = parseInt(e.target.value);
+                                        setNumChildren(newNum);
+                                        if (numMuddy > newNum) {
+                                          setNumMuddy(newNum);
+                                        }
+                                      }}
+                                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Number of Muddy Children: {numMuddy}
+                              </label>
+                              <input
+                                      type="range"
+                                      min="1"
+                                      max={numChildren}
+                                      value={numMuddy}
+                                      onChange={(e) => setNumMuddy(parseInt(e.target.value))}
+                                      className="w-full h-2 bg-amber-600 rounded-lg appearance-none cursor-pointer"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                The puzzle will take exactly {numMuddy} rounds to solve
+                              </p>
+                            </div>
+
+                            <button
+                                    onClick={initializeGame}
+                                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+                            >
+                              <Play />
+                              Start Puzzle
+                            </button>
+                          </div>
+                  ) : (
+                          <div className="space-y-6">
+                            <div className="relative flex items-center justify-center" style={{ height: '500px' }}>
+                              <div className="relative" style={{ width: '500px', height: '500px' }}>
+                                <svg className="absolute top-0 left-0" width="500" height="500" style={{ zIndex: 0, pointerEvents: 'none' }}>
+                                  {showConnections && selectedChild !== null && Array.from({ length: numChildren }).map((_, target) => {
+                                    if (target === selectedChild) return null;
+
+                                    const fromPos = getCirclePosition(selectedChild, numChildren, 180);
+                                    const toPos = getCirclePosition(target, numChildren, 180);
+
+                                    // SVG center matches the container center
+                                    const centerX = 250;
+                                    const centerY = 250;
+
+                                    const startX = centerX + fromPos.x;
+                                    const startY = centerY + fromPos.y;
+                                    const endX = centerX + toPos.x;
+                                    const endY = centerY + toPos.y;
+
+                                    const angle = Math.atan2(endY - startY, endX - startX);
+                                    const shortenBy = 40;
+                                    const adjustedEndX = endX - Math.cos(angle) * shortenBy;
+                                    const adjustedEndY = endY - Math.sin(angle) * shortenBy;
+                                    const adjustedStartX = startX + Math.cos(angle) * shortenBy;
+                                    const adjustedStartY = startY + Math.sin(angle) * shortenBy;
+
+                                    const isTargetMuddy = muddyChildren.includes(target);
+                                    const arrowColor = isTargetMuddy ? '#b45309' : '#86efac';
+
+                                    return (
+                                            <g key={target}>
+                                              <defs>
+                                                <marker
+                                                        id={`arrowhead-${selectedChild}-${target}`}
+                                                        markerWidth="10"
+                                                        markerHeight="10"
+                                                        refX="9"
+                                                        refY="3"
+                                                        orient="auto"
+                                                >
+                                                  <polygon points="0 0, 10 3, 0 6" fill={arrowColor} />
+                                                </marker>
+                                              </defs>
+                                              <line
+                                                      x1={adjustedStartX}
+                                                      y1={adjustedStartY}
+                                                      x2={adjustedEndX}
+                                                      y2={adjustedEndY}
+                                                      stroke={arrowColor}
+                                                      strokeWidth="3"
+                                                      markerEnd={`url(#arrowhead-${selectedChild}-${target})`}
+                                                      opacity="0.7"
+                                              />
+                                            </g>
+                                    );
+                                  })}
+                                </svg>
+                                {Array.from({ length: numChildren }).map((_, i) => {
+                                  const pos = getCirclePosition(i, numChildren, 180);
+                                  const isMuddy = muddyChildren.includes(i);
+                                  const answered = answers[i];
+                                  const isSelected = selectedChild === i;
+
+                                  return (
+                                          <button
+                                                  key={i}
+                                                  onClick={() => setSelectedChild(i)}
+                                                  className="absolute text-center transition-transform hover:scale-110 focus:outline-none"
+                                                  style={{
+                                                    left: `calc(50% + ${pos.x}px - 40px)`,
+                                                    top: `calc(50% + ${pos.y}px - 40px)`,
+                                                    zIndex: isSelected ? 20 : 10
+                                                  }}
+                                          >
+                                            <div
+                                                    className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold transition-all ${
+                                                            isMuddy
+                                                                    ? 'bg-amber-700 text-amber-100'
+                                                                    : 'bg-pink-100 text-pink-600'
+                                                    } ${answered ? 'ring-4 ring-green-400' : ''} ${
+                                                            isSelected ? 'ring-4 ring-blue-500 shadow-lg' : 'shadow-md'
+                                                    }`}
+                                            >
+                                              👤
+                                            </div>
+                                            <div className="mt-1 text-xs font-bold text-gray-700 bg-white rounded px-2 py-1 shadow-sm">
+                                              Child {i + 1}
+                                            </div>
+                                            {showConnections && (
+                                                    <div className="mt-1 flex items-center justify-center gap-1 bg-white rounded px-2 py-1 shadow-sm">
+                                                      <Eye />
+                                                      <span className="text-xs text-gray-600 font-medium">
+                                                                    {muddyChildren.filter(m => m !== i).length} muddy
+                                                                </span>
+                                                    </div>
+                                            )}
+                                          </button>
+                                  );
+                                })}
+                              </div>
+
+                              {showConnections && selectedChild !== null && (
+                                      <div className="absolute" style={{
+                                        left: '50%',
+                                        top: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        zIndex: 5
+                                      }}>
+                                        <div className="bg-white rounded-lg shadow-lg p-3 border-2 border-blue-400">
+                                          <div className="text-xs font-semibold text-gray-700 mb-2">Child {selectedChild + 1} sees:</div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <div className="w-3 h-3 bg-amber-600 rounded"></div>
+                                            <span className="text-xs text-gray-600">Muddy children</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-green-300 rounded"></div>
+                                            <span className="text-xs text-gray-600">Clean children</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                              )}
+                            </div>
+
+                            {selectedChild !== null && round > 0 && reasoning[selectedChild] && (
+                                    <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-4">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <Lightbulb />
+                                        <h3 className="font-semibold text-purple-900">
+                                          Child {selectedChild + 1}'s Reasoning (Round {round})
+                                        </h3>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <div className="bg-white p-3 rounded">
+                                          <span className="text-xs font-semibold text-gray-600">💭 Thought:</span>
+                                          <p className="text-sm text-gray-800 mt-1">{reasoning[selectedChild].thought}</p>
+                                        </div>
+                                        <div className="bg-white p-3 rounded">
+                                          <span className="text-xs font-semibold text-gray-600">👀 Observation:</span>
+                                          <p className="text-sm text-gray-800 mt-1">{reasoning[selectedChild].observation}</p>
+                                        </div>
+                                        <div className="bg-white p-3 rounded">
+                                          <span className="text-xs font-semibold text-gray-600">✓ Status:</span>
+                                          <p className="text-sm text-gray-800 mt-1">
+                                            {reasoning[selectedChild].knows
+                                                    ? muddyChildren.includes(selectedChild)
+                                                            ? "I know I'm muddy!"
+                                                            : "I know I'm clean!"
+                                                    : "I don't know yet..."}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                            )}
+
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-sm text-gray-600 mb-2">
+                                <strong>Round {round}:</strong> {solved ? 'Puzzle solved! ✓' : round === 0 ? 'Click the button to ask the first question' : 'Waiting for next question...'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Actually muddy: {muddyChildren.length} children • {selectedChild !== null ? `Click a child to see what they observe` : 'Click any child to see their view'}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <button
+                                      onClick={askQuestion}
+                                      disabled={solved}
+                                      className={`flex-1 font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2 ${
+                                              solved
+                                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                      }`}
+                              >
+                                <MessageSquare />
+                                Ask: "Do you know if you're muddy?"
+                              </button>
+
+                              <button
+                                      onClick={reset}
+                                      className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+                              >
+                                <RotateCcw />
+                                Reset
+                              </button>
+                            </div>
+                          </div>
+                  )}
+                </div>
+
+                {log.length > 0 && (
+                        <div className="bg-white rounded-lg shadow-xl p-6">
+                          <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <MessageSquare />
+                            Event Log
+                          </h3>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {log.map((entry, i) => (
+                                    <div key={i} className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                      {entry}
+                                    </div>
+                            ))}
+                          </div>
+
+                          {solved && (
+                                  <div className="mt-4 bg-green-50 border-l-4 border-green-500 p-4">
+                                    <h4 className="font-semibold text-green-900 mb-2">Why it took {round} rounds:</h4>
+                                    <p className="text-sm text-green-800">
+                                      With {muddyChildren.length} muddy children, it takes exactly {muddyChildren.length} rounds.
+                                      Each muddy child initially sees {muddyChildren.length - 1} muddy faces.
+                                      When no one answers for {muddyChildren.length - 1} rounds, they deduce there must be
+                                      {muddyChildren.length} muddy children—meaning they themselves are muddy!
+                                    </p>
+                                  </div>
+                          )}
+                        </div>
+                )}
+              </div>
+            </div>
+    );
+  }
+
+  ReactDOM.render(<MuddyChildren />, document.getElementById('root'));
+</script>
+</body>
+</html>
